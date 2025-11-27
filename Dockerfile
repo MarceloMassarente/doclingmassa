@@ -15,9 +15,5 @@ COPY requirements.txt .
 ENV DOCLING_SERVE_ENABLE_UI=true
 ENV DOCLING_SERVE_ENABLE_RAG=true
 
-
-# Expõe a porta
-EXPOSE 5001
-
 # Usamos 'sh -c' para garantir que a variável $PORT do Railway seja lida.
 CMD ["sh", "-c", "docling-serve run --host 0.0.0.0 --port $PORT --enable-ui"]
