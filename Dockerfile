@@ -21,3 +21,6 @@ EXPOSE 5001
 
 # Comando oficial para iniciar com a UI e suporte a variáveis de ambiente
 CMD ["sh", "-c", "docling-serve run --host 0.0.0.0 --port $PORT --enable-ui --no-show-header"]
+
+# Usamos 'sh -c' para garantir que a variável $PORT do Railway seja lida.
+CMD ["sh", "-c", "docling-serve run --host 0.0.0.0 --port $PORT --enable-ui"]
