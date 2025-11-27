@@ -9,5 +9,8 @@ RUN pip install --upgrade docling
 # Instala dependências extras (já fizemos isso antes, mas mantendo)
 RUN pip install uvicorn fastapi python-multipart
 
+COPY requirements.txt .
+    RUN pip install --no-cache-dir -r requirements.txt
+
 # Usa a variável de ambiente $PORT (Boas práticas do Railway)
 CMD uvicorn smart_main:app --host 0.0.0.0 --port $PORT
