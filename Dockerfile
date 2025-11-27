@@ -6,9 +6,6 @@ WORKDIR /app
 # Forçamos a atualização do Docling para a versão mais recente
 RUN pip install --upgrade docling
 
-# Copia o script modificado
-COPY app_override.py /app/smart_main.py
-
 # Instala dependências extras (já fizemos isso antes, mas mantendo)
 RUN pip install uvicorn fastapi python-multipart
 
