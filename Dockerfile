@@ -2,15 +2,15 @@ FROM ghcr.io/docling-project/docling-serve-cpu:latest
 
 WORKDIR /app
 
+# --- A CORREÇÃO ESTÁ AQUI ---
+# Forçamos a atualização do Docling para a versão mais recente
+RUN pip install --upgrade docling
+
 # Copia o script modificado
 COPY app_override.py /app/smart_main.py
 
-# Instala dependências extras se necessário (FastAPI já vem, mas garanta uvicorn)
-# A imagem base já deve ter, mas por segurança:
+# Instala dependências extras (já fizemos isso antes, mas mantendo)
 RUN pip install uvicorn fastapi python-multipart
 
-ENV PORT=8080
-EXPOSE 8080
-
-# Comando para rodar o NOSSO script, não o original
-CMD ["uvicorn", "smart_main:app", "--host", "0.0.0.0", "--port", "8080"]
+# Usa a variável de ambiente $PORT (Boas práticas do Railway)
+CMD uvicorn smart_main:app --host 0.0.0.0 --port $PORT
