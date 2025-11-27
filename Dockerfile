@@ -1,19 +1,23 @@
+# Usa a imagem oficial CPU
 FROM ghcr.io/docling-project/docling-serve-cpu:latest
 
 WORKDIR /app
 
-# --- A CORREÇÃO ESTÁ AQUI ---
-# Forçamos a atualização do Docling para a versão mais recente
+# 1. Atualiza o Docling (Isso é bom para pegar a correção do PPTX)
 RUN pip install --upgrade docling
 
-# Instala dependências extras (já fizemos isso antes, mas mantendo)
-RUN pip install uvicorn fastapi python-multipart
-
-COPY requirements.txt .
-    RUN pip install --no-cache-dir -r requirements.txt
-# Habilita a Interface Gráfica (UI) e a API v2
+# 2. Configurações de Ambiente
+# Habilita a UI e RAG
 ENV DOCLING_SERVE_ENABLE_UI=true
 ENV DOCLING_SERVE_ENABLE_RAG=true
+# Define 0.0.0.0 para aceitar conexões externas
+ENV HOST=0.0.0.0
 
-# Usamos 'sh -c' para garantir que a variável $PORT do Railway seja lida.
-CMD ["sh", "-c", "docling-serve run --host 0.0.0.0 --port $PORT --enable-ui"]
+# 3. Define um fallback para a porta (caso o Railway não injete, usa 5001)
+ENV PORT=5001
+EXPOSE $PORT
+
+# 4. O COMANDO BLINDADO
+# Removemos a cópia de requirements.txt pois a imagem base já tem tudo.
+# Usamos 'sh -c' para que a variável ${PORT} seja lida corretamente do Railway.
+CMD ["sh", "-c", "docling-serve run --host 0.0.0.0 --port ${PORT:-5001} --enable-ui"]
