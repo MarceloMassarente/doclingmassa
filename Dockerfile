@@ -11,6 +11,13 @@ RUN pip install uvicorn fastapi python-multipart
 
 COPY requirements.txt .
     RUN pip install --no-cache-dir -r requirements.txt
+# Habilita a Interface Gráfica (UI) e a API v2
+ENV DOCLING_SERVE_ENABLE_UI=true
+ENV DOCLING_SERVE_ENABLE_RAG=true
 
-# Usa a variável de ambiente $PORT (Boas práticas do Railway)
-CMD uvicorn smart_main:app --host 0.0.0.0 --port $PORT
+
+# Expõe a porta
+EXPOSE 5001
+
+# Comando oficial para iniciar com a UI e suporte a variáveis de ambiente
+CMD ["sh", "-c", "docling-serve run --host 0.0.0.0 --port $PORT --enable-ui --no-show-header"]
