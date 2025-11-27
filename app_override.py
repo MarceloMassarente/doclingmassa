@@ -1,4 +1,3 @@
-# app_override.py
 import logging
 import base64
 import os
@@ -9,7 +8,11 @@ from fastapi import FastAPI, UploadFile, File
 from pydantic import BaseModel
 
 # Imports do Docling
-from docling.document_converter import DocumentConverter, PdfFormatOption
+from docling.document_converter import (
+    DocumentConverter,
+    PdfFormatOption,
+    PptxFormatOption,  # <--- IMPORTANTE: Adicionar isso
+)
 from docling.datamodel.pipeline_options import PdfPipelineOptions
 from docling.datamodel.base_models import InputFormat
 
@@ -18,13 +21,17 @@ pipeline_options = PdfPipelineOptions()
 pipeline_options.do_ocr = True
 pipeline_options.do_table_structure = True
 pipeline_options.table_structure_options.do_cell_matching = True
-pipeline_options.generate_picture_images = True  # O Pulo do Gato: Habilita Crops
-pipeline_options.images_scale = 2.0  # Zoom 2x para gráficos
+pipeline_options.generate_picture_images = True
+pipeline_options.images_scale = 2.0
 
-# Instancia o conversor globalmente (Warm-up)
+# Instancia o conversor globalmente
 doc_converter = DocumentConverter(
     format_options={
-        InputFormat.PDF: PdfFormatOption(pipeline_options=pipeline_options)
+        # Aplica a configuração Smart para PDF
+        InputFormat.PDF: PdfFormatOption(pipeline_options=pipeline_options),
+        
+        # --- A CORREÇÃO: Aplica a MESMA configuração para PPTX ---
+        InputFormat.PPTX: PptxFormatOption(pipeline_options=pipeline_options)
     }
 )
 
@@ -46,11 +53,22 @@ class ExtractSmartResponse(BaseModel):
     filename: str
     slides: List[SlideData]
 
-# --- ENDPOINT NOVO ---
+# --- Rota de Saúde ---
+@app.get("/")
+def health_check():
+    return {"status": "ok", "service": "smart-docling-cpu"}
+
+# --- ENDPOINT PRINCIPAL ---
 @app.post("/extract-smart", response_model=ExtractSmartResponse)
 def extract_smart_endpoint(file: UploadFile = File(...)):
-    # Salvar temporário
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+    # Detecta a extensão para salvar com o sufixo correto (ajuda o Docling a decidir)
+    file_ext = ".pdf"
+    if file.filename.lower().endswith(".pptx"):
+        file_ext = ".pptx"
+    elif file.filename.lower().endswith(".docx"):
+        file_ext = ".docx"
+
+    with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext) as tmp:
         tmp.write(file.file.read())
         tmp_path = tmp.name
 
@@ -68,22 +86,25 @@ def extract_smart_endpoint(file: UploadFile = File(...)):
             candidates = []
             for element, _ in doc.iterate_items(page_no=page_no):
                 if element.label == "picture":
+                    # Lógica de segurança para PPTX (às vezes bbox vem zerado)
                     bbox = element.prov[0].bbox
-                    width = bbox.r - bbox.l
-                    height = bbox.b - bbox.t
-                    
-                    # Filtro de tamanho (>150px)
-                    if width > 150 and height > 150:
-                        img = element.get_image(doc)
-                        buf = BytesIO()
-                        img.save(buf, format="PNG")
-                        img_str = base64.b64encode(buf.getvalue()).decode("utf-8")
+                    if bbox:
+                        width = bbox.r - bbox.l
+                        height = bbox.b - bbox.t
                         
-                        candidates.append(VisionCandidate(
-                            ref_id=str(element.self_ref),
-                            base64_image=img_str,
-                            width=int(width), height=int(height)
-                        ))
+                        # Filtro de tamanho (Ajustado para 100px para pegar gráficos menores)
+                        if width > 100 and height > 100:
+                            img = element.get_image(doc)
+                            if img: # Verifica se a imagem foi gerada
+                                buf = BytesIO()
+                                img.save(buf, format="PNG")
+                                img_str = base64.b64encode(buf.getvalue()).decode("utf-8")
+                                
+                                candidates.append(VisionCandidate(
+                                    ref_id=str(element.self_ref),
+                                    base64_image=img_str,
+                                    width=int(width), height=int(height)
+                                ))
             
             output_slides.append(SlideData(
                 page_number=page_no,
